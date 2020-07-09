@@ -1,0 +1,64 @@
+Sub QS7_WORKLIST_BUILDER()
+'
+' QS7_WORKLIST_BUILDER Macro
+'
+
+'
+    Application.ScreenUpdating = False
+    ActiveSheet.DisplayPageBreaks = False
+
+    Dim FSO As Object, myFile As Object
+    Dim fileName As String, Arr As Variant
+    Dim workName As String, rng As Range, cellValue As Variant, i As Integer, j As Integer
+    
+    Sheets("Sheet1").Range("A1:J500").Clear
+    
+    fileName = Application.GetOpenFilename()
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+    Set myFile = FSO.OpenTextFile(fileName, 1)
+    Arr = Split(myFile.ReadAll, vbNewLine)
+    
+    Sheets("Sheet1").Select
+    Range("a1").Resize(UBound(Arr) + 1, 7).Select
+    Selection.Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
+    Range("a1").Resize(UBound(Arr) + 1, 1).Select
+    Range("a1").Resize(UBound(Arr) + 1, 1).Value = Application.Transpose(Arr)
+    Selection.TextToColumns Destination:=Range("A1"), DataType:=xlDelimited, _
+    TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
+    Semicolon:=False, Comma:=True, Space:=False, Other:=True, OtherChar _
+    :="|", FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, _
+    1), Array(6, 1)), TrailingMinusNumbers:=True
+    
+    Sheets("sheet1").Range("B1").Value = Left(Sheets("sheet1").Range("B1").Value, Len(Sheets("sheet1").Range("B1").Value) - 1)
+    
+    Set rng = Sheets("Sheet1").Range("B:B")
+    fileName = Right(fileName, 13)
+    fileName = Left(fileName, Len(fileName) - 4)
+    workName = "\\labshared\neonatal1\Baebies\LSD\Worklists\" & fileName
+
+    Open workName & "-1.csv" For Output As #1
+    Open workName & "-2.csv" For Output As #2
+    j = 1
+    For i = 1 To 1000
+        If rng.Cells(i, 1).Value = "" Then Exit For
+        If j <= 40 Then
+            If Application.IsNumber(rng.Cells(i, 1).Value) Then
+                Print #1, rng.Cells(i, 1).Value
+                j = j + 1
+            End If
+        ElseIf j > 40 Then
+            If Application.IsNumber(rng.Cells(i, 1).Value) Then
+                Print #2, rng.Cells(i, 1).Value
+                j = j + 1
+            End If
+        End If
+    Next i
+    Close #1
+    Close #2
+    Application.ScreenUpdating = True
+    ActiveSheet.DisplayPageBreaks = True
+    
+    Sheets("Sheet2").Select
+    Range("B20").Value = fileName
+
+End Sub
