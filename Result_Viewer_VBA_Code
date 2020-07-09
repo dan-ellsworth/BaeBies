@@ -1,0 +1,248 @@
+Option Explicit
+
+Sub import_data()
+    Application.ScreenUpdating = False
+    ActiveSheet.DisplayPageBreaks = False
+
+    Dim FSO As Object, myFile As Object
+    Dim filename As String, Arr As Variant
+    Dim workName As String, rng As Range, cellValue As Variant, i As Integer
+    Dim cell, demorow
+    
+
+    
+    filename = Application.GetOpenFilename()
+    filename = filename & ""
+    If filename <> "False" Then
+
+        Sheets(1).Range("A1:x500").Clear
+        
+        Sheets(2).Range("B37:o500").Value = ""
+        
+        Sheets(2).Range("D24:K25").Value = ""
+
+        Set FSO = CreateObject("Scripting.FileSystemObject")
+        Set myFile = FSO.OpenTextFile(filename, 1)
+        Arr = Split(myFile.ReadAll, vbNewLine)
+        
+        Sheets(1).Range("a1").Resize(UBound(Arr) + 1, 1).Value = Application.Transpose(Arr)
+        Sheets(1).Range("A:A").TextToColumns Destination:=Range("A1"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
+        Semicolon:=False, Comma:=True, Space:=False, Other:=True, OtherChar _
+        :="|", FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, _
+        1), Array(6, 1)), TrailingMinusNumbers:=True
+        
+        Sheets(2).Range("e4").Value = Sheets(1).Range("1:1").Find("Plate").Offset(1, 0).Value
+        Sheets(2).Range("e5").Value = Sheets(1).Range("1:1").Find("Start Time").Offset(1, 0).Value
+        Sheets(2).Range("e6").Value = Sheets(1).Range("1:1").Find("Cartridge Lot").Offset(1, 0).Value
+        Sheets(2).Range("e7").Value = Sheets(1).Range("1:1").Find("Cartridge Number").Offset(1, 0).Value
+        Sheets(2).Range("e8").Value = Sheets(1).Range("1:1").Find("CAL Slope").Offset(1, 0).Value
+        Sheets(2).Range("e9").Value = Sheets(1).Range("1:1").Find("User").Offset(1, 0).Value
+        
+        Sheets(2).Range("d13").Value = Sheets(1).Range("1:1").Find("IDUA LOQ").Offset(1, 0).Value
+        Sheets(2).Range("f13").Value = Sheets(1).Range("1:1").Find("GAA LOQ").Offset(1, 0).Value
+        Sheets(2).Range("h13").Value = Sheets(1).Range("1:1").Find("GBA LOQ").Offset(1, 0).Value
+        Sheets(2).Range("j13").Value = Sheets(1).Range("1:1").Find("GLA LOQ").Offset(1, 0).Value
+        
+        Sheets(2).Range("d12").Value = Sheets(1).Range("1:1").Find("IDUA LIN").Offset(1, 0).Value
+        Sheets(2).Range("f12").Value = Sheets(1).Range("1:1").Find("GAA LIN").Offset(1, 0).Value
+        Sheets(2).Range("h12").Value = Sheets(1).Range("1:1").Find("GBA LIN").Offset(1, 0).Value
+        Sheets(2).Range("j12").Value = Sheets(1).Range("1:1").Find("GLA LIN").Offset(1, 0).Value
+        
+        
+        
+        For Each cell In Sheets(1).Range("G:G")
+            If cell.Value = "" Then Exit For
+            If cell.Row > 1 Then
+                For i = 0 To 5
+                    If i < 3 Then
+                        If cell.Value = "QCL" Then Sheets(2).Range("B24").Offset(0, i).Value = cell.Offset(0, i).Value
+                        If cell.Value = "QCM" Then Sheets(2).Range("B25").Offset(0, i).Value = cell.Offset(0, i).Value
+                        Sheets(2).Range("B36").Offset(cell.Row - 1, i).Value = cell.Offset(0, i).Value
+                    ElseIf i > 2 Then
+                        If cell.Value = "QCL" Then Sheets(2).Range("B24").Offset(0, i + i - 2).Value = cell.Offset(0, i).Value
+                        If cell.Value = "QCM" Then Sheets(2).Range("B25").Offset(0, i + i - 2).Value = cell.Offset(0, i).Value
+                        Sheets(2).Range("B36").Offset(cell.Row - 1, i + i - 2).Value = cell.Offset(0, i).Value
+                    End If
+                Next i
+            End If
+        Next cell
+        
+        For Each cell In Sheets("Results").Range("b37:b200")
+            If cell.Value = "" Then Exit For
+            
+            If Not Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole) Is Nothing Then
+                cell.Offset(0, 10).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 5).Value
+                cell.Offset(0, 11).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 1).Value
+                cell.Offset(0, 12).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 6).Value
+                cell.Offset(0, 13).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 4).Value
+            End If
+        Next cell
+    End If
+    
+    Call calculate_that_ish
+    
+End Sub
+
+Sub calculate_that_ish()
+    Dim cell, i As Integer
+    
+    Sheets(2).Range("E24:E100").Value = ""
+    Sheets(2).Range("g24:g100").Value = ""
+    Sheets(2).Range("i24:i100").Value = ""
+    Sheets(2).Range("k24:k100").Value = ""
+   
+    
+    
+    For Each cell In Sheets(2).Range("b24:b25")
+        For i = 1 To 4
+            Select Case cell.Value
+                
+                Case "QCL"
+                    If cell.Offset(0, 2 * i).Value < Sheets("controls").Range("z11").Offset(0, 2 * i - 1).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    ElseIf cell.Offset(0, 2 * i).Value > Sheets("controls").Range("z11").Offset(0, 2 * i).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    End If
+                Case "QCI"
+                    If cell.Offset(0, 2 * i).Value < Sheets("controls").Range("z12").Offset(0, 2 * i - 1).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    ElseIf cell.Offset(0, 2 * i).Value > Sheets("controls").Range("z12").Offset(0, 2 * i).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    End If
+                Case "QCM"
+                    If cell.Offset(0, 2 * i).Value < Sheets("controls").Range("z13").Offset(0, 2 * i - 1).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    ElseIf cell.Offset(0, 2 * i).Value > Sheets("controls").Range("z13").Offset(0, 2 * i).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    End If
+                Case "QCH"
+                    If cell.Offset(0, 2 * i).Value < Sheets("controls").Range("z14").Offset(0, 2 * i - 1).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    ElseIf cell.Offset(0, 2 * i).Value > Sheets("controls").Range("z14").Offset(0, 2 * i).Value Then
+                        cell.Offset(0, 1 + 2 * i).Value = "ONL"
+                    End If
+            
+            End Select
+            
+            If cell.Offset(0, 2 * i).Value > Sheets(2).Range("b12").Offset(0, i * 2 - 1).Value Then
+                cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b12").Value
+            ElseIf cell.Offset(0, 2 * i).Value < Sheets(2).Range("b13").Offset(0, i * 2 - 1).Value Then
+                cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b13").Value
+            End If
+                
+        Next i
+    Next cell
+    
+    For Each cell In Sheets(2).Range("b37:B100")
+        If cell.Value = "" Then Exit For
+        If cell.Value <> "QCL" And cell.Value <> "QCM" Then
+            For i = 1 To 4
+                If cell.Offset(0, 2 * i).Value < Sheets(2).Range("b16").Offset(0, i * 2 - 1).Value Then
+                    cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b16").Value
+                ElseIf cell.Offset(0, 2 * i).Value < Sheets(2).Range("b17").Offset(0, i * 2 - 1).Value Then
+                    cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b17").Value
+                Else
+                    cell.Offset(0, 2 * i + 1).Value = "Normal"
+                End If
+                
+                If cell.Offset(0, 2 * i).Value > Sheets(2).Range("b12").Offset(0, i * 2 - 1).Value Then
+                    cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b12").Value
+                ElseIf cell.Offset(0, 2 * i).Value < Sheets(2).Range("b13").Offset(0, i * 2 - 1).Value Then
+                    cell.Offset(0, 2 * i + 1).Value = Sheets(2).Range("b13").Value
+                End If
+                
+            Next i
+        Else
+        End If
+        
+    Next cell
+    
+End Sub
+
+Sub Store_data()
+    Dim i, j
+
+    If Sheets("controls").Range("t:t").Find(Sheets(2).Range("E4").Value, LookIn:=xlValues) Is Nothing Then
+        Sheets("Controls").Range("a2:t3").Insert Shift:=xlDown
+        Sheets("Controls").Range("a2:J3").Value = Sheets(2).Range("b24:K25").Value
+        Sheets("Controls").Range("k2:k3").Value = Sheets(2).Range("d13").Value
+        Sheets("Controls").Range("l2:l3").Value = Sheets(2).Range("f13").Value
+        Sheets("Controls").Range("m2:m3").Value = Sheets(2).Range("h13").Value
+        Sheets("Controls").Range("n2:n3").Value = Sheets(2).Range("j13").Value
+        Sheets("Controls").Range("o2:o3").Value = Sheets(2).Range("d12").Value
+        Sheets("Controls").Range("p2:p3").Value = Sheets(2).Range("f12").Value
+        Sheets("Controls").Range("q2:q3").Value = Sheets(2).Range("h12").Value
+        Sheets("Controls").Range("r2:r3").Value = Sheets(2).Range("j12").Value
+        Sheets("Controls").Range("s2:s3").Value = Sheets(2).Range("E8").Value
+        Sheets("Controls").Range("t2:t3").Value = Sheets(2).Range("E4").Value
+    End If
+    
+    If Sheets("All Results").Range("w:w").Find(Sheets(2).Range("E4").Value, LookIn:=xlValues) Is Nothing Then
+        For i = 100 To 1 Step -1
+            If Sheets(2).Range("b36").Offset(i, 0).Value <> "" And _
+                Sheets(2).Range("b36").Offset(i, 0).Value <> "QCL" And _
+                Sheets(2).Range("b36").Offset(i, 0).Value <> "QCM" Then
+                    Sheets("All Results").Range("A2:t2").Insert Shift:=xlDown
+                    For j = 0 To 12
+                        Sheets("All Results").Range("A2").Offset(0, j).Value = Sheets(2).Range("b36").Offset(i, j).Value
+                    Next j
+                    Sheets("All Results").Range("n2").Value = Sheets(2).Range("d13").Value
+                    Sheets("All Results").Range("o2").Value = Sheets(2).Range("f13").Value
+                    Sheets("All Results").Range("p2").Value = Sheets(2).Range("h13").Value
+                    Sheets("All Results").Range("q2").Value = Sheets(2).Range("j13").Value
+                    Sheets("All Results").Range("r2").Value = Sheets(2).Range("d12").Value
+                    Sheets("All Results").Range("s2").Value = Sheets(2).Range("f12").Value
+                    Sheets("All Results").Range("t2").Value = Sheets(2).Range("h12").Value
+                    Sheets("All Results").Range("u2").Value = Sheets(2).Range("j12").Value
+                    Sheets("All Results").Range("v2").Value = Sheets(2).Range("E8").Value
+                    Sheets("All Results").Range("w2").Value = Sheets(2).Range("E4").Value
+            End If
+        Next i
+    End If
+
+End Sub
+
+
+
+Sub import_Demographic_Data()
+    Dim fnum
+    Dim filename
+    Dim inputline
+    Dim currentline
+    Dim i
+    
+    fnum = FreeFile
+    
+    filename = "\\labshared\dhel shared\Horizon Documents\Neonatal Archive\NBS_AuxData.csv"
+    
+    Open filename For Input Access Read As #fnum
+    
+    Do Until EOF(fnum)
+        Line Input #fnum, inputline
+        inputline = Replace(inputline, " ", "")
+        currentline = Split(inputline, ",")
+        If Sheets("demographics").Range("a:a").Find(currentline(0), LookIn:=xlValues, lookat:=xlWhole) Is Nothing Then
+            Sheets("Demographics").Range("2:2").EntireRow.Insert Shift:=xlDown
+            For i = 0 To UBound(currentline)
+                Sheets("Demographics").Range("a2").Offset(0, i).Value = currentline(i)
+            Next i
+        End If
+    Loop
+    MsgBox ("demographics successfully imported")
+runaway:
+    Close #fnum
+End Sub
+
+Sub test()
+    Dim cell
+    For Each cell In Sheets("All Results").Range("A:A")
+        If cell.Value = "" Then Exit For
+        If Not Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole) Is Nothing Then
+            cell.Offset(0, 10).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 5).Value
+            cell.Offset(0, 11).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 1).Value
+            cell.Offset(0, 12).Value = Sheets("Demographics").Range("A:A").Find(cell.Value, LookIn:=xlValues, lookat:=xlWhole).Offset(0, 6).Value
+        End If
+    Next cell
+
+End Sub
